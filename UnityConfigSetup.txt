@@ -1,0 +1,78 @@
+Setting up Unity in Visual Studio
+1. https://www.nuget.org/packages/Unity/
+	using the package manager console type Install-Package Unity -Version 4.0.1 and hit enter
+2. https://www.nuget.org/packages/Unity.Mvc5/
+	using the package manager console type Install-Package Unity.Mvc5 -Version 1.2.3 and hit enter
+3. Open the UnityConfig class in the App_Start folder (if this was not created, then create this class file)
+	Add the following code to implement dependency injection
+using Microsoft.Practices.Unity;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Web;
+using System.Web.Http;
+using System.Web.Mvc;
+using Unity.Mvc5;
+using System.Web.Http.Dependencies;
+
+namespace UnitySetup.App_Start
+{
+    public sealed class UnityConfig
+    {
+        private readonly static UnityConfig _instance = new UnityConfig();
+
+        static UnityConfig() { }
+        private UnityConfig() { }
+
+        public static UnityConfig Instance { get { return _instance; } }
+
+        public void RegisterComponents(HttpConfiguration config)
+        {
+            UnityContainer container = new UnityContainer();
+            //container.RegisterType<IYourInterfaceName, YourConcreteClassName>();
+
+            DependencyResolver.SetResolver(new UnityDependencyResolver(container));
+            config.DependencyResolver = new UnityResolver(container);
+        }
+    }
+
+    public class UnityResolver : System.Web.Http.Dependencies.IDependencyResolver
+    {
+        protected IUnityContainer container;
+
+        public UnityResolver(IUnityContainer container)
+        {
+            if (container == null)
+                throw new ArgumentNullException("container");
+
+            this.container = container;
+        }
+
+        public object GetService(Type serviceType)
+        {
+            try { return container.Resolve(serviceType); }
+            catch (ResolutionFailedException)
+            {
+                return null;
+            }
+        }
+
+        public IEnumerable<object> GetServices(Type serviceType)
+        {
+            try { return container.ResolveAll(serviceType); }
+            catch (ResolutionFailedException) { return new List<object>(); }
+        }
+
+        public IDependencyScope BeginScope()
+        {
+            IUnityContainer child = container.CreateChildContainer();
+            return new UnityResolver(child);
+        }
+
+        public void Dispose()
+        {
+            container.Dispose();
+        }
+
+    }
+}
